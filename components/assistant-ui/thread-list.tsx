@@ -48,7 +48,11 @@ const ThreadListItems: FC = () => {
 
   const groups = useMemo<ThreadListGroup[] | null>(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    const dates = threadIds.map((id) => itemsById.get(id)?.lastMessageAt);
+    const dates = threadIds.map(
+      (id) =>
+        (itemsById.get(id) as { lastMessageAt?: Date } | undefined)
+          ?.lastMessageAt,
+    );
     if (!dates.some(Boolean)) return null;
 
     const now = new Date();

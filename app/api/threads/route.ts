@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+import { getClientId } from "@/lib/client-id";
+import { ensureThread, listThreads } from "@/lib/persistence";
+
+export async function GET() {
+  const clientId = await getClientId();
+  if (!clientId) return NextResponse.json({ threads: [] });
+  const threads = await listThreads(clientId);
+  return NextResponse.json({ threads });
+}
+
+export async function POST(req: Request) {
+  const clientId = await getClientId();
+  if (!clientId) {
+    return NextResponse.json({ error: "no client id" }, { status: 400 });
+  }
+  const { threadId }: { threadId: string } = await req.json();
+  if (!threadId) {
+    return NextResponse.json({ error: "threadId required" }, { status: 400 });
+  }
+  await ensureThread(threadId, clientId);
+  return NextResponse.json({ ok: true });
+}

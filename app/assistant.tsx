@@ -1,11 +1,43 @@
 "use client";
 
+import { useMemo } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
   useChatRuntime,
   AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { createPostgresHistoryAdapter } from "@/lib/history-adapter";
+
+const CLIENT_ID_COOKIE = "agent_client_id";
+
+/** Stable per-browser client id, mirrored to a cookie for server-side scoping. */
+function useClientId(): string {
+  return useMemo(() => {
+    if (typeof window === "undefined") return "";
+    let id = window.localStorage.getItem(CLIENT_ID_COOKIE);
+    if (!id) {
+      id = crypto.randomUUID();
+      window.localStorage.setItem(CLIENT_ID_COOKIE, id);
+    }
+    // Mirror to a cookie so the server (API routes) can read it.
+    document.cookie = `${CLIENT_ID_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`;
+    return id;
+  }, []);
+}
+
+/** Stable thread id for this browser session, persisted across reloads. */
+function useThreadId(): string {
+  return useMemo(() => {
+    if (typeof window === "undefined") return "";
+    let id = window.localStorage.getItem("agent_thread_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      window.localStorage.setItem("agent_thread_id", id);
+    }
+    return id;
+  }, []);
+}
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   SidebarInset,
@@ -24,12 +56,21 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export const Assistant = () => {
+  const clientId = useClientId();
+  const threadId = useThreadId();
+
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     transport: new AssistantChatTransport({
       api: "/api/chat",
     }),
+    adapters: {
+      history: createPostgresHistoryAdapter(threadId || "default"),
+    },
   });
+
+  // Touch clientId so the cookie is set on mount (value used server-side).
+  void clientId;
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
