@@ -64,5 +64,33 @@ export async function POST(
   `;
   await sql`UPDATE threads SET updated_at = now() WHERE id = ${id}`;
 
+  // Derive a title from the first user message if the thread has none yet.
+  if ((entry.content?.role as string) === "user") {
+    const title = extractText(entry.content).slice(0, 80);
+    if (title) {
+      await sql`
+        UPDATE threads SET title = ${title}
+        WHERE id = ${id} AND (title IS NULL OR title = '')
+      `;
+    }
+  }
+
   return NextResponse.json({ ok: true });
+}
+
+// Best-effort extraction of plain text from a stored aui/v0 message content.
+function extractText(content: Record<string, unknown> | undefined): string {
+  if (!content) return "";
+  const parts = (content.content ?? content.parts) as
+    | { type?: string; text?: string }[]
+    | undefined;
+  if (Array.isArray(parts)) {
+    return parts
+      .filter((p) => p?.type === "text" && typeof p.text === "string")
+      .map((p) => p.text)
+      .join(" ")
+      .trim();
+  }
+  if (typeof content.text === "string") return content.text.trim();
+  return "";
 }

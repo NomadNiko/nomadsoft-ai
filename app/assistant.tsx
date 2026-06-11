@@ -6,8 +6,9 @@ import {
   useChatRuntime,
   AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
+import { useRemoteThreadListRuntime } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { createPostgresHistoryAdapter } from "@/lib/history-adapter";
+import { usePostgresThreadListAdapter } from "@/lib/thread-list-adapter";
 
 const CLIENT_ID_COOKIE = "agent_client_id";
 
@@ -22,19 +23,6 @@ function useClientId(): string {
     }
     // Mirror to a cookie so the server (API routes) can read it.
     document.cookie = `${CLIENT_ID_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`;
-    return id;
-  }, []);
-}
-
-/** Stable thread id for this browser session, persisted across reloads. */
-function useThreadId(): string {
-  return useMemo(() => {
-    if (typeof window === "undefined") return "";
-    let id = window.localStorage.getItem("agent_thread_id");
-    if (!id) {
-      id = crypto.randomUUID();
-      window.localStorage.setItem("agent_thread_id", id);
-    }
     return id;
   }, []);
 }
@@ -57,16 +45,18 @@ import {
 
 export const Assistant = () => {
   const clientId = useClientId();
-  const threadId = useThreadId();
+  const threadListAdapter = usePostgresThreadListAdapter();
 
-  const runtime = useChatRuntime({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    transport: new AssistantChatTransport({
-      api: "/api/chat",
-    }),
-    adapters: {
-      history: createPostgresHistoryAdapter(threadId || "default"),
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: function RuntimeHook() {
+      return useChatRuntime({
+        sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+        transport: new AssistantChatTransport({
+          api: "/api/chat",
+        }),
+      });
     },
+    adapter: threadListAdapter,
   });
 
   // Touch clientId so the cookie is set on mount (value used server-side).

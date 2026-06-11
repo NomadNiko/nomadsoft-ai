@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getClientId } from "@/lib/client-id";
 import { ensureThread, listThreads } from "@/lib/persistence";
 
+// List all (non-archived + archived) threads for the current client.
 export async function GET() {
   const clientId = await getClientId();
   if (!clientId) return NextResponse.json({ threads: [] });
@@ -9,6 +10,7 @@ export async function GET() {
   return NextResponse.json({ threads });
 }
 
+// Create / ensure a thread.
 export async function POST(req: Request) {
   const clientId = await getClientId();
   if (!clientId) {
@@ -19,5 +21,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "threadId required" }, { status: 400 });
   }
   await ensureThread(threadId, clientId);
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, threadId });
 }

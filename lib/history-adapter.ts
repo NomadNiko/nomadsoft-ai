@@ -19,9 +19,10 @@ import type {
  * Messages are scoped server-side by the `agent_client_id` cookie.
  */
 export function createPostgresHistoryAdapter(
-  threadId: string,
+  getThreadId: () => string,
 ): ThreadHistoryAdapter {
-  const base = `/api/threads/${encodeURIComponent(threadId)}/messages`;
+  const url = () =>
+    `/api/threads/${encodeURIComponent(getThreadId())}/messages`;
 
   const withFormat = <
     TMessage,
@@ -31,7 +32,7 @@ export function createPostgresHistoryAdapter(
   ): GenericThreadHistoryAdapter<TMessage> => {
     return {
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const res = await fetch(base, { method: "GET" });
+        const res = await fetch(url(), { method: "GET" });
         if (!res.ok) return { messages: [] };
         const data = (await res.json()) as {
           messages: {
@@ -51,7 +52,7 @@ export function createPostgresHistoryAdapter(
       async append(item: MessageFormatItem<TMessage>): Promise<void> {
         const content = formatAdapter.encode(item);
         const id = formatAdapter.getId(item.message);
-        await fetch(base, {
+        await fetch(url(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
