@@ -16,10 +16,10 @@ export async function POST(req: Request) {
   if (!clientId) {
     return NextResponse.json({ error: "no client id" }, { status: 400 });
   }
-  const { threadId }: { threadId: string } = await req.json();
+  const { threadId, model }: { threadId: string; model?: string } = await req.json();
   if (!threadId) {
     return NextResponse.json({ error: "threadId required" }, { status: 400 });
   }
-  await ensureThread(threadId, clientId);
+  await ensureThread(threadId, clientId, model);
   return NextResponse.json({ ok: true, threadId });
 }
